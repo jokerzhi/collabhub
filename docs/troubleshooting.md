@@ -207,6 +207,20 @@ docker logs ch-redis --tail 100        # 直接看容器
 | **原因** | PowerShell 执行策略默认 Restricted |
 | **修法** | 用 `npm.cmd`；或管理员执行 `Set-ExecutionPolicy RemoteSigned -Scope CurrentUser` |
 
+### 5.9 `git push` 报 `Failed to connect to github.com:443`
+
+| | |
+|---|---|
+| **现象** | `fatal: unable to access 'https://github.com/...': Failed to connect to github.com:443 after 21005 ms: Could not connect to server` |
+| **怎么认** | 浏览器能打开 GitHub，但 git 不行；`Test-NetConnection github.com -Port 443` 返回 `False` |
+| **原因** | 系统代理只对浏览器和系统组件生效，**Git 默认不走系统代理**。国内直连 GitHub 的 443 基本不可用 |
+| **修法** | 先查代理端口（注册表 `HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings` 里的 `ProxyServer`，或看代理软件自己的设置），然后：<br>`git config --global http.proxy http://127.0.0.1:<端口>`<br>`git config --global https.proxy http://127.0.0.1:<端口>` |
+| **验证** | `git ls-remote origin` 退出码 0（空仓库无输出也算成功） |
+| **副作用** | 代理关掉后 git 会一直尝试连本地端口而失败，此时执行 `git config --global --unset http.proxy` 和同名的 https 项 |
+
+> 本项目实测：代理是 MyClash 的 `127.0.0.1:7877`，配上之后 push 正常。
+> 凭据由 Git Credential Manager 存在 Windows 凭据管理器里，授权一次即可，之后不用重复登录。
+
 ---
 
 ## 6. 两个完整案例
