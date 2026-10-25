@@ -17,6 +17,9 @@
   <properties>
     <!-- Spring Boot BOM 不管理 BouncyCastle，只能自己定版本 -->
     <bouncycastle.version>1.86</bouncycastle.version>
+    <!-- JJWT 也不在 Boot BOM 里。选 0.12.x 而不是 0.13.0：0.12 的 API 最稳定，
+         文档和示例最多，出问题容易查 -->
+    <jjwt.version>0.12.7</jjwt.version>
   </properties>
 
   <dependencies>
@@ -36,6 +39,25 @@
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcprov-jdk18on</artifactId>
       <version>${bouncycastle.version}</version>
+    </dependency>
+
+    <!-- JWT 签发：api 编译期用，impl / jackson 只在运行期需要 -->
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-api</artifactId>
+      <version>${jjwt.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-impl</artifactId>
+      <version>${jjwt.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-jackson</artifactId>
+      <version>${jjwt.version}</version>
+      <scope>runtime</scope>
     </dependency>
 
     <dependency>

@@ -42,6 +42,21 @@ app:
   version: 0.1.0-SNAPSHOT
   cors:
     allowed-origins: http://localhost:5173
+  security:
+    jwt:
+      # 签名密钥。HS256 要求至少 256 位（32 字节），短了 JJWT 会直接抛异常。
+      # 这里的默认值只用于本地开发；真实部署必须通过环境变量 JWT_SECRET 覆盖，
+      # 否则拿到源码的人可以伪造任意用户的令牌。
+      secret: ${JWT_SECRET:dev-only-secret-change-me-0123456789abcdef0123456789}
+      issuer: collabhub
+      # access 15 分钟：短是为了被盗后损失有限；靠 refresh 续期保证体验
+      access-ttl: PT15M
+    login:
+      # 连续失败 5 次锁定 15 分钟（FR-AUTH-003）
+      max-failed-attempts: 5
+      lock-duration: PT15M
+      # refresh token 7 天。它是不透明随机串（不是 JWT），所以可以随时吊销
+      refresh-ttl: P7D
 
 management:
   endpoints:
