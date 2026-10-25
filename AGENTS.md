@@ -14,7 +14,8 @@
 
 - ✅ M2-1：`identity` 的 `V1001` 迁移（`user_account` / `user_credential` / `user_session`）
 - ✅ M2-2：注册接口 `POST /api/v1/identity/users`（Argon2id + 邮箱唯一）
-- ⏳ M2-3：登录 + JWT 双令牌 + 失败锁定
+- ✅ M2-3：登录 `POST /api/v1/identity/sessions`（JWT 双令牌 + 失败锁定）
+- ⏳ M2-4：受保护接口 + 认证过滤器（用 accessToken 识别用户）
 - `workspace` / `document` 仍只有包声明，没有业务代码
 
 ---
