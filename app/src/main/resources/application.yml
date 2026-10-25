@@ -1,0 +1,67 @@
+spring:
+  application:
+    name: collabhub
+
+  # JDK 21+ 的虚拟线程：Tomcat 每个请求跑在虚拟线程上，
+  # 后面调 MinIO / 调模型 API 这类阻塞 IO 不用再纠结线程池大小
+  threads:
+    virtual:
+      enabled: true
+
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:collabhub}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false&rewriteBatchedStatements=true
+    username: ${DB_USER:collabhub}
+    password: ${DB_PASSWORD:collabhub_dev_pwd}
+    hikari:
+      pool-name: collabhub-pool
+      maximum-pool-size: 10
+      minimum-idle: 2
+
+  flyway:
+    enabled: true
+    # 每个模块把自己的迁移脚本放在 db/migration 下，Flyway 会扫描全部 classpath 位置
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+    validate-on-migrate: true
+    clean-disabled: true
+
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      fail-on-unknown-properties: false
+
+server:
+  port: 8080
+  shutdown: graceful
+  error:
+    include-stacktrace: never
+
+app:
+  version: 0.1.0-SNAPSHOT
+  cors:
+    allowed-origins: http://localhost:5173
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  tracing:
+    sampling:
+      probability: 1.0
+
+logging:
+  pattern:
+    # 日志里带上 traceId / spanId / requestId，排障时一键串起来
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-},%X{requestId:-}]"
+  level:
+    root: INFO
+    com.collabhub: DEBUG
+    org.flywaydb: INFO

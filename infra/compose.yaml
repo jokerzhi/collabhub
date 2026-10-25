@@ -1,0 +1,106 @@
+# CollabHub 本地中间件
+#
+# 主库使用你本机已安装的 MySQL 8.0.35（服务 MySQL80，端口 3306），不放进容器。
+# 容器只负责 MySQL 之外的部分。
+#
+# 用法：
+#   copy .env.example .env
+#   docker compose up -d
+#   docker compose ps
+#
+# 向量库（第 5 个月做语义搜索时用）默认不启动：
+#   docker compose --profile vector up -d
+name: collabhub
+
+services:
+  # ---------------------------------------------------------------- 缓存 / 会话 / 分布式锁
+  redis:
+    image: redis:7.4-alpine
+    container_name: ch-redis
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - ${REDIS_PASSWORD:-collabhub_dev_pwd}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-collabhub_dev_pwd}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ---------------------------------------------------------------- 异步消息 / 事件
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    container_name: ch-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-collabhub}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-collabhub_dev_pwd}
+      TZ: Asia/Shanghai
+    ports:
+      - "5672:5672"     # AMQP
+      - "15672:15672"   # 管理台
+    volumes:
+      - rabbitdata:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+
+  # ---------------------------------------------------------------- 对象存储（附件、头像）
+  minio:
+    image: minio/minio:latest
+    container_name: ch-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-collabhub}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-collabhub_dev_pwd}
+      TZ: Asia/Shanghai
+    ports:
+      - "9000:9000"     # S3 API
+      - "9001:9001"     # 控制台
+    volumes:
+      - miniodata:/data
+
+  # ---------------------------------------------------------------- 邮件沙箱
+  # 本地收信，不会真的发出去
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: ch-mailpit
+    restart: unless-stopped
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+      TZ: Asia/Shanghai
+    ports:
+      - "1025:1025"     # SMTP
+      - "8025:8025"     # Web UI
+
+  # ---------------------------------------------------------------- 向量库（按需）
+  # MySQL 没有向量类型，语义检索用独立的 Qdrant。
+  # 默认不启动：docker compose --profile vector up -d
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: ch-qdrant
+    restart: unless-stopped
+    profiles: ["vector"]
+    ports:
+      - "6333:6333"     # HTTP / Dashboard
+      - "6334:6334"     # gRPC
+    volumes:
+      - qdrantdata:/qdrant/storage
+
+volumes:
+  redisdata:
+  rabbitdata:
+  miniodata:
+  qdrantdata:

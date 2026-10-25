@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.collabhub</groupId>
+    <artifactId>collabhub-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>identity</artifactId>
+  <name>identity</name>
+  <description>身份与账号：注册登录、JWT、会话、个人资料</description>
+
+  <properties>
+    <!-- Spring Boot BOM 不管理 BouncyCastle，只能自己定版本 -->
+    <bouncycastle.version>1.86</bouncycastle.version>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.collabhub</groupId>
+      <artifactId>platform</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <!-- 只要加密能力，不引入整个 Security（过滤器链等到登录那一步再上） -->
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-crypto</artifactId>
+    </dependency>
+    <!-- Argon2PasswordEncoder 的底层实现 -->
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcprov-jdk18on</artifactId>
+      <version>${bouncycastle.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+</project>

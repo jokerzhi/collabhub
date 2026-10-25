@@ -1,0 +1,42 @@
+# --- 环境与密钥 ---
+.env
+*.local
+
+# --- Java / Maven ---
+target/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/*.jar
+.mvn/timing.properties
+
+# --- Node / 前端 ---
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+pnpm-debug.log*
+
+# --- IDE ---
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+
+# --- 构建产物 / 本地数据 ---
+build/
+out/
+*.log
+logs/
+tmp/
+.hotspot-hs_err*.log
+
+# --- 操作系统 ---
+Thumbs.db
+Desktop.ini
+.DS_Store
