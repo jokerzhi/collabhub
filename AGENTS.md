@@ -218,6 +218,22 @@ String hash = new Argon2PasswordEncoder(16, 32, 1, 16 * 1024, 2).encode(raw);
 - 字符集 `utf8mb4`，排序规则 `utf8mb4_0900_ai_ci`（要存 emoji）
 - 外键：项目里**不建物理外键**，靠应用层保证 + 定期一致性检查（原因：分库和归档时外键会挡路，写在 ADR 里）
 
+### 持久层（MyBatis-Plus，见 [ADR-0005](docs/adr/0005-switch-to-mybatis-plus.md)）
+
+分层是 `Service → Repository → Mapper → DB`，**Service 里不出现任何 MyBatis 类型**。
+Repository 是薄适配层，负责「领域语义 ↔ 实体/SQL」的转换。
+
+| 规则 | 说明 |
+|---|---|
+| 实体用可变 POJO | `internal/entity/*Entity`，映射表结构，MyBatis-Plus 需要无参构造 + setter。不加 Lombok，getter/setter 手写 |
+| DTO / 查询结果用 record | 对外返回、以及 `AuthRow` 这类联表查询结果，保持不可变 |
+| `updateById` 只更新非 null 字段 | 想把某列改回 **NULL**（比如解除 `locked_until`），必须写显式 SQL 或用 `UpdateWrapper.set` |
+| 软删除要自己写 | 没启用 MP 的逻辑删除插件，每条查询都要带 `deleted_at IS NULL` |
+| 时间仍是 UTC | 实体字段是 `LocalDateTime`，Repository 负责 `Instant` ↔ UTC `LocalDateTime` 转换 |
+| 看 SQL | 开发期已开 `log-impl`，SQL 会打到日志。Wrapper 出问题时这是唯一线索 |
+
+`@Mapper` 注解即可，不需要 `@MapperScan` —— 每个模块自己声明自己的 Mapper，不会互相串。
+
 ---
 
 ## 测试
@@ -292,6 +308,8 @@ test(FILE-003): 补秒传的哈希冲突用例
 | Flyway 的 `flyway_schema_history` 是 `VARCHAR` 版本列 | 取最大版本要 `CAST(version AS UNSIGNED)` |
 | Docker 镜像源 `docker.m.daocloud.io` 不放行 minio | 从 `docker.1panel.live` 拉取后 retag |
 | IDEA 用 Maven 3.10 导入后 0 个依赖库、满屏编译错误 | IDEA 2025.3 的 Maven 适配层只支持到 3.9.x（Maven 3.10 会报 `No implementation for ArtifactHandlerManager`）。IDEA 里 Maven home 必须选 **Bundled (3.9.11)**；命令行仍用 3.10，互不影响 |
+| MyBatis-Plus 的 `updateById` 忽略 null 字段 | 想把列改回 NULL（如解除 `locked_until`）必须写显式 SQL 或用 `UpdateWrapper.set`。传 null 等于「这列不动」 |
+| `@Transactional` 方法里抛异常会回滚副作用 | 失败计数、审计这类「必须留下」的写操作要用 `REQUIRES_NEW` 独立事务，否则随主事务一起回滚（登录失败计数踩过） |
 
 遇到新的问题：**先查 [docs/troubleshooting.md](docs/troubleshooting.md)**（分层定位 → 日志地图 → 五步法 → 已知故障库），
 解决完把「现象 / 证据 / 修法 / 验证」补进第 5 节，别只留在聊天记录里。
