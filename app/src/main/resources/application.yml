@@ -58,6 +58,18 @@ app:
       # refresh token 7 天。它是不透明随机串（不是 JWT），所以可以随时吊销
       refresh-ttl: P7D
 
+# MyBatis-Plus（选型见 ADR-0005）
+mybatis-plus:
+  configuration:
+    # 数据库下划线列名 -> Java 驼峰属性。MP 默认就是 true，这里显式写出来，
+    # 避免以后改全局配置时误以为它是默认关闭的
+    map-underscore-to-camel-case: true
+    # 开发期把真实执行的 SQL 打到日志。Wrapper 拼出来的 SQL 是"看不见"的，
+    # 不开这个排查只能靠猜。生产环境应改成 NoLoggingImpl 或直接删掉这项
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  global-config:
+    banner: false
+
 management:
   endpoints:
     web:

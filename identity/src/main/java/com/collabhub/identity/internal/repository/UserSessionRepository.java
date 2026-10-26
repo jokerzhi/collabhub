@@ -1,6 +1,8 @@
 package com.collabhub.identity.internal.repository;
 
-import org.springframework.jdbc.core.JdbcTemplate;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.collabhub.identity.internal.entity.UserSessionEntity;
+import com.collabhub.identity.internal.mapper.UserSessionMapper;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
@@ -18,24 +20,25 @@ import java.time.ZoneOffset;
  *   <li>改密后批量吊销全部会话</li>
  * </ul>
  *
+ * <p>存的是令牌的 <b>SHA-256 哈希</b>而不是原文：数据库被拖走时，哈希换不出可用令牌。
+ *
  * <p>不负责：令牌的生成与哈希（{@code RefreshTokenFactory}），
  * 也不负责判断会话是否有效（调用方查 {@code revoked_at} 和 {@code expires_at}）。
  */
 @Repository
 public class UserSessionRepository {
 
-    private final JdbcTemplate jdbc;
+    private final UserSessionMapper sessionMapper;
 
-    public UserSessionRepository(JdbcTemplate jdbc) {
-        this.jdbc = jdbc;
+    public UserSessionRepository(UserSessionMapper sessionMapper) {
+        this.sessionMapper = sessionMapper;
     }
 
     /**
      * 写入一条会话。
      *
-     * <p>注意存的是 <b>{@code refreshTokenHash} 而不是原文</b> —— 数据库被拖走时，
-     * 哈希换不出可用令牌。这也是 {@code refresh_token_hash} 上有唯一索引的原因：
-     * 同一串令牌不允许出现在两个会话里。
+     * <p>唯一索引 {@code uk_user_session_token} 保证同一串令牌不会出现在两个会话里 ——
+     * 如果出现重复插入，说明随机数生成出了问题，应该让它直接报错而不是静默吞掉。
      *
      * @param userId           用户 ID
      * @param refreshTokenHash SHA-256 十六进制（64 字符）
@@ -51,27 +54,26 @@ public class UserSessionRepository {
                        Instant createdAt,
                        Instant expiresAt) {
 
-        jdbc.update("""
-                        INSERT INTO user_session
-                            (user_id, refresh_token_hash, ip_address, user_agent,
-                             created_at, last_used_at, expires_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                        """,
-                userId,
-                refreshTokenHash,
-                truncate(ipAddress, 45),
-                truncate(userAgent, 512),
-                utc(createdAt),
-                utc(createdAt),
-                utc(expiresAt));
+        UserSessionEntity entity = new UserSessionEntity();
+        entity.setUserId(userId);
+        entity.setRefreshTokenHash(refreshTokenHash);
+        entity.setIpAddress(truncate(ipAddress, 45));
+        entity.setUserAgent(truncate(userAgent, 512));
+        entity.setCreatedAt(utc(createdAt));
+        entity.setLastUsedAt(utc(createdAt));
+        entity.setExpiresAt(utc(expiresAt));
+
+        sessionMapper.insert(entity);
     }
 
     /** 按哈希查会话 ID，用于测试与后续的刷新/吊销逻辑。 */
     public Long findIdByHash(String refreshTokenHash) {
-        var ids = jdbc.queryForList(
-                "SELECT id FROM user_session WHERE refresh_token_hash = ?",
-                Long.class, refreshTokenHash);
-        return ids.isEmpty() ? null : ids.getFirst();
+        UserSessionEntity entity = sessionMapper.selectOne(
+                new LambdaQueryWrapper<UserSessionEntity>()
+                        .select(UserSessionEntity::getId)
+                        .eq(UserSessionEntity::getRefreshTokenHash, refreshTokenHash));
+
+        return entity == null ? null : entity.getId();
     }
 
     // ---------------------------------------------------------------- 工具
@@ -79,7 +81,7 @@ public class UserSessionRepository {
     /**
      * 按列宽截断。
      *
-     * <p>UA 串可以任意长（有些爬虫会塞几千字符），直接入库会被 MySQL 拒绝（严格模式），
+     * <p>UA 串可以任意长（有些爬虫会塞几千字符），直接入库会被 MySQL 严格模式拒绝，
      * 导致登录接口在"用户一切正常"的情况下 500。截断比放宽列宽更稳：
      * 我们只需要它够用来识别设备，不需要完整保真。
      */

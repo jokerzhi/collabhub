@@ -29,6 +29,12 @@
       <version>${project.version}</version>
     </dependency>
 
+    <!-- 持久层：MyBatis-Plus（见 ADR-0005） -->
+    <dependency>
+      <groupId>com.baomidou</groupId>
+      <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+    </dependency>
+
     <!-- 只要加密能力，不引入整个 Security（过滤器链等到登录那一步再上） -->
     <dependency>
       <groupId>org.springframework.security</groupId>
